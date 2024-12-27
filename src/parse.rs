@@ -3,6 +3,36 @@ use crate::lex::Token;
 use crate::lex::TokenType;
 
 use std::collections::HashSet;
+use std::vec;
+
+#[derive(Clone)]
+pub struct Node {
+    pub string: String,
+    pub token: Token,
+    pub children: Vec<Node>,
+}
+
+
+impl Node {
+    pub fn new() -> Self {
+        let node = Node {
+            string: "Root".to_string(),
+            token: Token{text: "".to_string(), kind: TokenType::BAD},
+            children: vec![]
+        };
+        node
+    }
+
+    pub fn print_tree(&self, level: usize) {
+        // Print the current node's token text with indentation
+        println!("{}{}", "  ".repeat(level), self.token.text);
+
+        // Recursively print all children nodes
+        for child in &self.children {
+            child.print_tree(level + 1);
+        }
+    }
+}
 
 pub struct Parser {
     lexer: Lexer,
@@ -11,6 +41,7 @@ pub struct Parser {
     symbols: HashSet<String>,
     labels_declared: HashSet<String>,
     labels_gotoed: HashSet<String>,
+    ast: Node
 }
 
 /*
@@ -41,13 +72,14 @@ impl Parser {
             symbols: HashSet::new(),
             labels_declared: HashSet::new(),
             labels_gotoed: HashSet::new(),
+            ast: Node::new()
         };
         parser.next_token();
         parser.next_token();
         parser
     }
 
-    pub fn program(&mut self) {
+    pub fn program(&mut self) -> Node {
         println!("PROGRAM");
 
         while self.check_token(TokenType::NEWLINE) {
@@ -55,7 +87,8 @@ impl Parser {
         }
 
         while !self.check_token(TokenType::EOF) {
-            self.statement();
+            let sub_node = self.statement();
+            self.ast.children.push(sub_node);
         }
 
         for label in &self.labels_gotoed {
@@ -63,32 +96,45 @@ impl Parser {
                 unreachable!("Attempting to GOTO undeclared label: {label}");
             }
         }
+
+        self.ast.clone()
     }
 
-    fn statement(&mut self) {
+    fn statement(&mut self) -> Node {
         // "PRINT" (expression | string)
+
+        let mut node = Node {
+            string: String::from("statement"),
+            token: self.cur_token.clone(),
+            children: vec![]
+        };
+
         if self.check_token(TokenType::PRINT) {
             println!("STATEMENT-PRINT");
 
             self.next_token();
             if self.check_token(TokenType::STRING) {
+                node.children.push(Node { string: "print-value".to_string(), token: self.cur_token.clone(), children: vec![] });
                 self.next_token();
             } else {
                 // expect expression
-                self.expression();
+                node.children.push(self.expression());
             }
         } else if self.check_token(TokenType::IF) {
             // | "IF" comparison "THEN" nl {statement} "ENDIF" nl
             println!("STATEMENT-IF");
 
             self.next_token();
-            self.comparison();
+            // node.children.push(self.comparison());
+            node.children.push(self.comparison());
+
 
             self.match_token(TokenType::THEN);
             self.nl();
 
             while !self.check_token(TokenType::ENDIF) {
-                self.statement();
+                // node.children.push(self.statement());
+                node.children.push(self.statement());
             }
             self.match_token(TokenType::ENDIF);
 
@@ -97,13 +143,13 @@ impl Parser {
             println!("STATEMENT-WHILE");
 
             self.next_token();
-            self.comparison();
+            node.children.push(self.comparison());
 
             self.match_token(TokenType::REPEAT);
             self.nl();
 
             while !self.check_token(TokenType::ENDWHILE) {
-                self.statement();
+                node.children.push(self.statement());
             }
             self.match_token(TokenType::ENDWHILE);
 
@@ -138,9 +184,10 @@ impl Parser {
                 self.symbols.insert(self.cur_token.text.clone());
             }
             
+            node.children.push(Node { string: "assignee".to_string(), token: self.cur_token.clone(), children: vec![] });
             self.match_token(TokenType::IDENT);
             self.match_token(TokenType::EQ);
-            self.expression();
+            node.children.push(self.expression());
             
         } else if self.check_token(TokenType::INPUT) {
             // | "INPUT" ident nl
@@ -151,7 +198,8 @@ impl Parser {
             if !self.symbols.contains(&self.cur_token.text) {
                 self.symbols.insert(self.cur_token.text.clone());
             }
-
+            
+            node.children.push(Node { string: "assignee".to_string(), token: self.cur_token.clone(), children: vec![] });
             self.match_token(TokenType::IDENT);
             
         } else {
@@ -160,27 +208,40 @@ impl Parser {
 
         // newline
         self.nl();
+        node
     }
 
-    fn comparison(&mut self) {
+    fn comparison(&mut self) -> Node {
         // comparison ::= expression (("==" | "!=" | ">" | ">=" | "<" | "<=") expression)+
         println!("COMPARISON");
-        self.expression();
+
+        let mut node: Node = Node {
+            string: String::from("comparison"),
+            token: Token { text: String::from("comparison"), kind: TokenType::COMPARISON },
+            children: vec![]
+        };
+
+        node.children.push(self.expression());
 
 
-        if !self.is_comparison(&self.cur_token.text) {
+        if !Parser::is_comparison(&self.cur_token.text) {
             unreachable!("Expected comparison token, got {0} instead", self.cur_token.text);
         }
-        self.next_token();
-        self.expression();
+        node.children.push(Node{string: "Equality".to_string(), token: self.cur_token.clone(), children: vec![]});
 
-        while self.is_comparison(&self.cur_token.text) {
+        self.next_token();
+        node.children.push(self.expression());
+
+        while Parser::is_comparison(&self.cur_token.text) {
+            node.children.push(Node{string: "Equality".to_string(), token: self.cur_token.clone(), children: vec![]});
             self.next_token();
-            self.expression();
+            node.children.push(self.expression());
         }
+
+        node
     }
 
-    fn is_comparison(&self, op: &str) -> bool {
+    pub fn is_comparison(op: &str) -> bool {
         match op {
             "==" => true,
             "!=" => true,
@@ -192,37 +253,71 @@ impl Parser {
         }
     }
 
-    fn expression(&mut self) {
+    fn expression(&mut self) -> Node {
         // expression ::= term {( "-" | "+" ) term}
         println!("EXPRESSION");
-        self.term();
+
+        let mut node = Node {
+            string: String::from("expression"),
+            token: Token { text: String::from("expression"), kind: TokenType::EXPRESSION },
+            children: vec![]
+        };
+
+        node.children.push(self.term());
         while self.check_token(TokenType::PLUS) || self.check_token(TokenType::MINUS) {
+            node.children.push(Node{string: "plus/minus".to_string(), token: self.cur_token.clone(), children: vec![]});
             self.next_token();
-            self.term();
+            node.children.push(self.term());
         }
+
+        node
     }
 
-    fn term(&mut self) {
+    fn term(&mut self) -> Node {
         // term ::= unary {( "/" | "*" ) unary}
         println!("TERM");
-        self.unary();
+
+        let mut node = Node {
+            string: String::from("term"),
+            token: Token { text: String::from("term"), kind: TokenType::TERM },
+            children: vec![]
+        };
+
+        node.children.push(self.unary());
         while self.check_token(TokenType::SLASH) || self.check_token(TokenType::ASTERISK) {
+            node.children.push(Node{string: "mult/div".to_string(), token: self.cur_token.clone(), children: vec![]});
             self.next_token();
-            self.unary();
+            node.children.push(self.unary());
         }
+
+        node
     }
 
-    fn unary(&mut self) {
+    fn unary(&mut self) -> Node {
+        // unary ::= ["+" | "-"] primary
         println!("UNARY");
+
+        let mut old_token = Token { text: "+".to_string(), kind: TokenType::PLUS };
 
         // optional to handle cases like +2, -3, -3 * +2 etc.
         if self.check_token(TokenType::PLUS) || self.check_token(TokenType::MINUS) {
+            old_token = self.cur_token.clone();
             self.next_token();
         }
-        self.primary();
+
+        let child = self.primary();
+        Node {
+            string: String::from("unary"),
+            token: old_token,
+            children: vec![child]
+        }
     }
-    fn primary(&mut self) {
+
+    fn primary(&mut self) -> Node {
         println!("PRIMARY ({0})", self.cur_token.text);
+        // primary ::= number | ident
+
+        let old_token = self.cur_token.clone();
         if self.check_token(TokenType::NUMBER) {
             self.next_token();
         } else if self.check_token(TokenType::IDENT) {
@@ -233,11 +328,13 @@ impl Parser {
         } else {
             unreachable!("Unexpected Primary token of {0}", self.cur_token.text);
         }
+
+        Node {
+            string: String::from("primary"),
+            token: old_token,
+            children: vec![]
+        }
     }
-
-// unary ::= ["+" | "-"] primary
-// primary ::= number | ident
-
 
     fn nl(&mut self) {
         println!("NEWLINE");

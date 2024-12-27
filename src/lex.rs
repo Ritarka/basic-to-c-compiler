@@ -177,6 +177,12 @@ pub enum TokenType {
 	GTEQ,
 
     BAD,
+
+    // Grammars
+    COMPARISON,
+    EXPRESSION,
+    TERM,
+
 }
 
 impl fmt::Display for TokenType {
@@ -210,6 +216,9 @@ impl fmt::Display for TokenType {
             TokenType::GT => "GT",
             TokenType::GTEQ => "GTEQ",
             TokenType::BAD => "BAD",
+            TokenType::COMPARISON => "COMPARISON",
+            TokenType::EXPRESSION => "EXPRESSION",
+            TokenType::TERM => "TERM",
         };
         write!(f, "{}", token_str)
     }
