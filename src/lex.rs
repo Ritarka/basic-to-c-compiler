@@ -142,6 +142,7 @@ impl Lexer {
 }
 
 #[derive(PartialEq)]
+#[derive(Copy, Clone)]
 pub enum TokenType {
     EOF,
 	NEWLINE,
@@ -214,6 +215,7 @@ impl fmt::Display for TokenType {
     }
 }
 
+#[derive(Clone)]
 pub struct Token {
     pub text: String,
     pub kind: TokenType,
