@@ -2,10 +2,15 @@ use crate::lex::Lexer;
 use crate::lex::Token;
 use crate::lex::TokenType;
 
+use std::collections::HashSet;
+
 pub struct Parser {
     lexer: Lexer,
     cur_token: Token,
-    peek_token: Token
+    peek_token: Token,
+    symbols: HashSet<String>,
+    labels_declared: HashSet<String>,
+    labels_gotoed: HashSet<String>,
 }
 
 /*
@@ -33,6 +38,9 @@ impl Parser {
             lexer: input_lexer,
             cur_token: Token{text: "".to_string(), kind: TokenType::BAD},
             peek_token: Token{text: "".to_string(), kind: TokenType::BAD},
+            symbols: HashSet::new(),
+            labels_declared: HashSet::new(),
+            labels_gotoed: HashSet::new(),
         };
         parser.next_token();
         parser.next_token();
@@ -48,6 +56,12 @@ impl Parser {
 
         while !self.check_token(TokenType::EOF) {
             self.statement();
+        }
+
+        for label in &self.labels_gotoed {
+            if !self.labels_declared.contains(label) {
+                unreachable!("Attempting to GOTO undeclared label: {label}");
+            }
         }
     }
 
@@ -98,6 +112,12 @@ impl Parser {
             println!("STATEMENT-LABEL");
 
             self.next_token();
+
+            if self.labels_declared.contains(&self.cur_token.text) {
+                unreachable!("Label {0} is already declared!", self.cur_token.text);
+            }
+            self.labels_declared.insert(self.cur_token.text.clone());
+
             self.match_token(TokenType::IDENT);
             
         } else if self.check_token(TokenType::GOTO) {
@@ -105,6 +125,7 @@ impl Parser {
             println!("STATEMENT-GOTO");
 
             self.next_token();
+            self.labels_gotoed.insert(self.cur_token.text.clone());
             self.match_token(TokenType::IDENT);
             
         } else if self.check_token(TokenType::LET) {
@@ -112,6 +133,11 @@ impl Parser {
             println!("STATEMENT-LET");
 
             self.next_token();
+            
+            if !self.symbols.contains(&self.cur_token.text) {
+                self.symbols.insert(self.cur_token.text.clone());
+            }
+            
             self.match_token(TokenType::IDENT);
             self.match_token(TokenType::EQ);
             self.expression();
@@ -121,6 +147,11 @@ impl Parser {
             println!("STATEMENT-INPUT");
 
             self.next_token();
+
+            if !self.symbols.contains(&self.cur_token.text) {
+                self.symbols.insert(self.cur_token.text.clone());
+            }
+
             self.match_token(TokenType::IDENT);
             
         } else {
@@ -192,7 +223,12 @@ impl Parser {
     }
     fn primary(&mut self) {
         println!("PRIMARY ({0})", self.cur_token.text);
-        if self.check_token(TokenType::NUMBER) || self.check_token(TokenType::IDENT) {
+        if self.check_token(TokenType::NUMBER) {
+            self.next_token();
+        } else if self.check_token(TokenType::IDENT) {
+            if !self.symbols.contains(&self.cur_token.text) {
+                unreachable!("Attempting to reference variable before assignment {0}", self.cur_token.text);
+            }
             self.next_token();
         } else {
             unreachable!("Unexpected Primary token of {0}", self.cur_token.text);
