@@ -1,9 +1,6 @@
-use std::hash::Hash;
-use std::fmt::{self, format};
 use std::{fs::File, io::Write, vec};
 use std::collections::HashSet;
 
-use crate::lex::Token;
 use crate::parse::Parser;
 use crate::{lex::TokenType, parse::Node};
 
@@ -42,7 +39,7 @@ impl Emitter {
     }
 
     fn rprint_tree(&mut self) {
-        // println!("{}", self.token.text);
+        // // println!("{}", self.token.text);
 
         let node = self.stack.last().unwrap().clone();
 

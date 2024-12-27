@@ -7,7 +7,6 @@ use std::vec;
 
 #[derive(Clone)]
 pub struct Node {
-    pub string: String,
     pub token: Token,
     pub children: Vec<Node>,
 }
@@ -16,7 +15,6 @@ pub struct Node {
 impl Node {
     pub fn new() -> Self {
         let node = Node {
-            string: "Root".to_string(),
             token: Token{text: "".to_string(), kind: TokenType::BAD},
             children: vec![]
         };
@@ -25,7 +23,7 @@ impl Node {
 
     pub fn print_tree(&self, level: usize) {
         // Print the current node's token text with indentation
-        println!("{}{}", "  ".repeat(level), self.token.text);
+        // println!("{}{}", "  ".repeat(level), self.token.text);
 
         // Recursively print all children nodes
         for child in &self.children {
@@ -80,7 +78,7 @@ impl Parser {
     }
 
     pub fn program(&mut self) -> Node {
-        println!("PROGRAM");
+        // println!("PROGRAM");
 
         while self.check_token(TokenType::NEWLINE) {
             self.next_token();
@@ -104,17 +102,16 @@ impl Parser {
         // "PRINT" (expression | string)
 
         let mut node = Node {
-            string: String::from("statement"),
             token: self.cur_token.clone(),
             children: vec![]
         };
 
         if self.check_token(TokenType::PRINT) {
-            println!("STATEMENT-PRINT");
+            // println!("STATEMENT-PRINT");
 
             self.next_token();
             if self.check_token(TokenType::STRING) {
-                node.children.push(Node { string: "print-value".to_string(), token: self.cur_token.clone(), children: vec![] });
+                node.children.push(Node { token: self.cur_token.clone(), children: vec![] });
                 self.next_token();
             } else {
                 // expect expression
@@ -122,7 +119,7 @@ impl Parser {
             }
         } else if self.check_token(TokenType::IF) {
             // | "IF" comparison "THEN" nl {statement} "ENDIF" nl
-            println!("STATEMENT-IF");
+            // println!("STATEMENT-IF");
 
             self.next_token();
             // node.children.push(self.comparison());
@@ -140,7 +137,7 @@ impl Parser {
 
         } else if self.check_token(TokenType::WHILE) {
             // | "WHILE" comparison "REPEAT" nl {statement} "ENDWHILE" nl
-            println!("STATEMENT-WHILE");
+            // println!("STATEMENT-WHILE");
 
             self.next_token();
             node.children.push(self.comparison());
@@ -155,7 +152,7 @@ impl Parser {
 
         } else if self.check_token(TokenType::LABEL) {
             // | "LABEL" ident nl
-            println!("STATEMENT-LABEL");
+            // println!("STATEMENT-LABEL");
 
             self.next_token();
 
@@ -168,7 +165,7 @@ impl Parser {
             
         } else if self.check_token(TokenType::GOTO) {
             // | "GOTO" ident nl
-            println!("STATEMENT-GOTO");
+            // println!("STATEMENT-GOTO");
 
             self.next_token();
             self.labels_gotoed.insert(self.cur_token.text.clone());
@@ -176,7 +173,7 @@ impl Parser {
             
         } else if self.check_token(TokenType::LET) {
             // | "LET" ident "=" expression nl
-            println!("STATEMENT-LET");
+            // println!("STATEMENT-LET");
 
             self.next_token();
             
@@ -184,14 +181,14 @@ impl Parser {
                 self.symbols.insert(self.cur_token.text.clone());
             }
             
-            node.children.push(Node { string: "assignee".to_string(), token: self.cur_token.clone(), children: vec![] });
+            node.children.push(Node { token: self.cur_token.clone(), children: vec![] });
             self.match_token(TokenType::IDENT);
             self.match_token(TokenType::EQ);
             node.children.push(self.expression());
             
         } else if self.check_token(TokenType::INPUT) {
             // | "INPUT" ident nl
-            println!("STATEMENT-INPUT");
+            // println!("STATEMENT-INPUT");
 
             self.next_token();
 
@@ -199,11 +196,11 @@ impl Parser {
                 self.symbols.insert(self.cur_token.text.clone());
             }
             
-            node.children.push(Node { string: "assignee".to_string(), token: self.cur_token.clone(), children: vec![] });
+            node.children.push(Node { token: self.cur_token.clone(), children: vec![] });
             self.match_token(TokenType::IDENT);
             
         } else {
-            println!("Not a valid statement! Got {0} of type {1}", self.cur_token.text, self.cur_token.text);
+            // println!("Not a valid statement! Got {0} of type {1}", self.cur_token.text, self.cur_token.text);
         }
 
         // newline
@@ -213,10 +210,9 @@ impl Parser {
 
     fn comparison(&mut self) -> Node {
         // comparison ::= expression (("==" | "!=" | ">" | ">=" | "<" | "<=") expression)+
-        println!("COMPARISON");
+        // println!("COMPARISON");
 
         let mut node: Node = Node {
-            string: String::from("comparison"),
             token: Token { text: String::from("comparison"), kind: TokenType::COMPARISON },
             children: vec![]
         };
@@ -227,13 +223,13 @@ impl Parser {
         if !Parser::is_comparison(&self.cur_token.text) {
             unreachable!("Expected comparison token, got {0} instead", self.cur_token.text);
         }
-        node.children.push(Node{string: "Equality".to_string(), token: self.cur_token.clone(), children: vec![]});
+        node.children.push(Node{token: self.cur_token.clone(), children: vec![]});
 
         self.next_token();
         node.children.push(self.expression());
 
         while Parser::is_comparison(&self.cur_token.text) {
-            node.children.push(Node{string: "Equality".to_string(), token: self.cur_token.clone(), children: vec![]});
+            node.children.push(Node{token: self.cur_token.clone(), children: vec![]});
             self.next_token();
             node.children.push(self.expression());
         }
@@ -255,17 +251,16 @@ impl Parser {
 
     fn expression(&mut self) -> Node {
         // expression ::= term {( "-" | "+" ) term}
-        println!("EXPRESSION");
+        // println!("EXPRESSION");
 
         let mut node = Node {
-            string: String::from("expression"),
             token: Token { text: String::from("expression"), kind: TokenType::EXPRESSION },
             children: vec![]
         };
 
         node.children.push(self.term());
         while self.check_token(TokenType::PLUS) || self.check_token(TokenType::MINUS) {
-            node.children.push(Node{string: "plus/minus".to_string(), token: self.cur_token.clone(), children: vec![]});
+            node.children.push(Node{token: self.cur_token.clone(), children: vec![]});
             self.next_token();
             node.children.push(self.term());
         }
@@ -275,17 +270,16 @@ impl Parser {
 
     fn term(&mut self) -> Node {
         // term ::= unary {( "/" | "*" ) unary}
-        println!("TERM");
+        // println!("TERM");
 
         let mut node = Node {
-            string: String::from("term"),
             token: Token { text: String::from("term"), kind: TokenType::TERM },
             children: vec![]
         };
 
         node.children.push(self.unary());
         while self.check_token(TokenType::SLASH) || self.check_token(TokenType::ASTERISK) {
-            node.children.push(Node{string: "mult/div".to_string(), token: self.cur_token.clone(), children: vec![]});
+            node.children.push(Node{token: self.cur_token.clone(), children: vec![]});
             self.next_token();
             node.children.push(self.unary());
         }
@@ -295,9 +289,9 @@ impl Parser {
 
     fn unary(&mut self) -> Node {
         // unary ::= ["+" | "-"] primary
-        println!("UNARY");
+        // println!("UNARY");
 
-        let mut old_token = Token { text: "+".to_string(), kind: TokenType::PLUS };
+        let mut old_token = Token { text: "".to_string(), kind: TokenType::PLUS };
 
         // optional to handle cases like +2, -3, -3 * +2 etc.
         if self.check_token(TokenType::PLUS) || self.check_token(TokenType::MINUS) {
@@ -307,14 +301,13 @@ impl Parser {
 
         let child = self.primary();
         Node {
-            string: String::from("unary"),
             token: old_token,
             children: vec![child]
         }
     }
 
     fn primary(&mut self) -> Node {
-        println!("PRIMARY ({0})", self.cur_token.text);
+        // println!("PRIMARY ({0})", self.cur_token.text);
         // primary ::= number | ident
 
         let old_token = self.cur_token.clone();
@@ -330,14 +323,13 @@ impl Parser {
         }
 
         Node {
-            string: String::from("primary"),
             token: old_token,
             children: vec![]
         }
     }
 
     fn nl(&mut self) {
-        println!("NEWLINE");
+        // println!("NEWLINE");
         self.match_token(TokenType::NEWLINE);
         while self.check_token(TokenType::NEWLINE) {
             self.next_token();
@@ -355,9 +347,9 @@ impl Parser {
         self.cur_token.kind == token_type
     }
 
-    fn check_peek(&mut self, token_type: TokenType) -> bool {
-        self.peek_token.kind == token_type
-    }
+    // fn check_peek(&mut self, token_type: TokenType) -> bool {
+    //     self.peek_token.kind == token_type
+    // }
 
     fn next_token(&mut self) {
         self.cur_token = self.peek_token.clone();
