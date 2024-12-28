@@ -1,4 +1,4 @@
-# BASIC-to-c-compiler
+# BASIC-to-C-compiler
 
 This was a short project. I woke up the morning after Christmas with the burning desire to build a compiler. I had built an interpreter before for my Compilers and Interpreters class during undergrad, but it was not my best work. I wanted to improve my understanding of how compilers works and build something more robust. It was also a good opportunity for me to get more experience with Rust. I picked up the language recently (just for fun) and wanted to get some more experience with it.
 
