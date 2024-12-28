@@ -19,8 +19,6 @@ Overall I:
 
 ## Program grammar  
 ```
-program grammar
-
 program ::= {statement}
 statement ::= "PRINT" (expression | string) nl
     | "IF" comparison "THEN" nl {statement} "ENDIF" nl
