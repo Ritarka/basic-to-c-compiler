@@ -1,21 +1,27 @@
-#[allow(dead_code)]
-
 use std::fs;
 
 mod lex;
 mod parse;
 mod emitter;
+mod optimizer;
 use emitter::Emitter;
 
 fn main() {
     let source = fs::read_to_string("test7.bas").expect("Could not open file!");
+
     let lexer = lex::Lexer::new(source.to_string());
+    println!("Lexing completed");
+
     let mut parser = parse::Parser::new(lexer);
     let ast = parser.program();
-    // println!("Parser completed!");
+    println!("Parsing and AST construction completed");
 
-    ast.print_tree(0);
-    let mut emitter = Emitter::new("prog.c".to_string(), ast);
+    let optimized_ast = optimizer::optimize(ast);
+    println!("Optimization completed!");
+
+    let mut emitter = Emitter::new("prog.c".to_string(), optimized_ast);
+    println!("Compilation finished!");
+
     emitter.print_tree();
 }
 

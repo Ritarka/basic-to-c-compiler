@@ -23,7 +23,7 @@ impl Node {
 
     pub fn print_tree(&self, level: usize) {
         // Print the current node's token text with indentation
-        // println!("{}{}", "  ".repeat(level), self.token.text);
+        println!("{}{}", "  ".repeat(level), self.token.text);
 
         // Recursively print all children nodes
         for child in &self.children {

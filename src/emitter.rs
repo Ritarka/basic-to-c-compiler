@@ -10,7 +10,9 @@ pub struct Emitter {
     code: String,
     ast: Node,
     stack: Vec<Node>,
-    symbols: HashSet<String>
+    symbols: HashSet<String>,
+    indent_space: i32,
+    needs_indent: bool
 }
 
 impl Emitter {
@@ -21,26 +23,30 @@ impl Emitter {
             code: String::from(""),
             ast: ast,
             stack: vec![],
-            symbols: HashSet::new()
+            symbols: HashSet::new(),
+            indent_space: 0,
+            needs_indent: true
         }
     }
 
     pub fn print_tree(&mut self) {
         self.header_line("#include <stdio.h>\n");
         self.header_line("int main(void) {");
+        self.indent();
 
         self.stack.push(self.ast.clone());
         self.rprint_tree();
 
+        self.emit_line("");
         self.emit_line("return 0;");
+        
+        self.unindent();
         self.emit_line("}");
 
         self.write_out();
     }
 
     fn rprint_tree(&mut self) {
-        // // println!("{}", self.token.text);
-
         let node = self.stack.last().unwrap().clone();
 
         match node.token.kind {
@@ -71,6 +77,12 @@ impl Emitter {
                     self.stack.pop();
                 }
                 self.emit_line(") {");
+                self.indent();
+                return;
+            },
+            TokenType::ENDIF => {
+                self.unindent();
+                self.emit_line("}");
                 return;
             },
             TokenType::WHILE => {
@@ -81,11 +93,15 @@ impl Emitter {
                 self.stack.pop();
 
                 self.emit_line(") {");
+                self.indent();
+
                 for child in &node.children[1..] {
                     self.stack.push(child.clone());
                     self.rprint_tree();
                     self.stack.pop();
                 }
+
+                self.unindent();
                 self.emit_line("}");
                 return;
             },
@@ -99,7 +115,7 @@ impl Emitter {
                 let first_node = node.children[0].clone();
                 let identifier = first_node.token.text;
                 if !self.symbols.contains(&identifier) {
-                    self.header_line(&format!("float {};", &identifier));
+                    self.function_header(&format!("float {};", &identifier));
                     self.symbols.insert(identifier.clone());
                 }
 
@@ -117,14 +133,18 @@ impl Emitter {
                 let first_node = node.children[0].clone();
                 let identifier = first_node.token.text;
                 if !self.symbols.contains(&identifier) {
-                    self.header_line(&format!("float {};", &identifier));
+                    self.function_header(&format!("float {};", &identifier));
                     self.symbols.insert(identifier.clone());
                 }
 
                 self.emit_line(&("if (0 == scanf(\"%".to_owned() + "f\", &" + &identifier + ")) {"));
+                self.indent();
+                
                 self.emit_line(&(identifier + " = 0;"));
                 self.emit("scanf(\"%");
                 self.emit_line("*s\");");
+                
+                self.unindent();
                 self.emit_line("}");
                 return;
             },
@@ -176,26 +196,6 @@ impl Emitter {
             _ => {}
         }
 
-        // let message: &str = node.string.as_str();
-        // match message {
-        //     "comparison" => {
-        //         if node.children.len() != 2 {
-        //             unreachable!("Expected comparison to have two children! Got {}", node.children.len());
-        //         }
-
-        //         self.stack.push(node.children[0].clone());
-        //         self.rprint_tree();
-        //         self.stack.pop();
-
-        //         self.emit(&format!(" {} ", node.token.text.clone()));
-
-        //         self.stack.push(node.children[1].clone());
-        //         self.rprint_tree();
-        //         self.stack.pop();
-        //     }
-        //     _ => {}
-        // }
-
         for child in &node.children {
             self.stack.push(child.clone());
             self.rprint_tree();
@@ -205,24 +205,45 @@ impl Emitter {
 
 
     fn emit(&mut self, line: &str) {
-        self.code += line;
+        if self.needs_indent {
+            self.code += &format!("{}{}", " ".repeat(self.indent_space as usize), line);
+            self.needs_indent = false;
+        } else {
+            self.code += line;
+        }
     }
 
     fn emit_line(&mut self, line: &str) {
         self.emit(line);
         self.code += "\n";
+        self.needs_indent = true;
     }
-
+    
     fn header_line(&mut self, line: &str) {
         self.header += line;
         self.header += "\n";
     }
 
+    fn function_header(&mut self, line: &str) {
+        self.header += &format!("{}{}\n", " ".repeat(4), line);
+    }
+
     fn write_out(&mut self) {
         let mut file = File::create(self.file_path.clone()).expect("Unable to open file!");
         let _ok = write!(file, "{}", self.header).unwrap();
-        // let _ok = write!(file, "{}", "\n").unwrap();
+        let _ok = write!(file, "{}", "\n").unwrap();
         let _ok = write!(file, "{}", self.code).unwrap();
+    }
+
+    fn indent(&mut self) {
+        self.indent_space += 4;
+    }
+
+    fn unindent(&mut self) {
+        self.indent_space -= 4;
+        if self.indent_space < 0 {
+            unreachable!("Programmer error! Indentation space should never be negative");
+        }
     }
 
 }
