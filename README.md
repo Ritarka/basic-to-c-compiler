@@ -11,7 +11,7 @@ Just as a sanity check, I started working on the emitter immediately after. I cr
 
 Afterwards, I just built a simple optimizer. This just took constant values and combined them together. E.g `2 * 3` would be turned into `6`. See Example 1 below. I could have gone deeper with the optimizer, but decided it was a good place to end the project. I have built more complicated optimizers before for class, and so I didn't see the need repeat that.
 
-Overall I:
+Overall I...:
 - Learned how compilers are built
 - Learned what an AST is how to build one
 - Learned how to build a Lexer and Parser
